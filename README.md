@@ -42,6 +42,18 @@ $env:PATE_HOST = "0.0.0.0"; $env:PATE_PORT = "8765"; python run.py
 
 Otras variables: `PATE_CSV_PATH` (ruta alternativa del CSV).
 
+## Versión publicada (GitHub Pages)
+
+La carpeta `docs/` es una copia sin servidor de la plataforma, pensada para GitHub Pages (Settings → Pages → rama `main`, carpeta `/docs`). Los datos van cifrados en `docs/data.enc` (AES-256-GCM) y se descifran en el navegador con un usuario y una contraseña. Sin ellos, el archivo no se puede leer.
+
+Para regenerarla con los datos actuales (la clave se pasa por entorno y no se guarda en ningún archivo):
+
+```powershell
+$env:PATE_STATIC_USER = "usuario"; $env:PATE_STATIC_PASS = "contraseña"; python export_static.py
+```
+
+Muestra Resumen, Nómina y Horas extra sin pagar. No incluye filtros globales ni subida de CSV; los nombres van siempre enmascarados. Si cambias la contraseña, hay que regenerar y volver a publicar `docs/`.
+
 ## Reglas de la demo
 
 Son supuestos pendientes de validar con PATE y están en `backend/config.py` (bloque `DEMO_*`):
