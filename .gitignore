@@ -1,0 +1,14 @@
+# Datos reales de PATE: no se suben al repositorio
+Checadas.csv
+*.csv
+data/
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+
+# Capturas y temporales de verificacion
+_t.html
+*.png
