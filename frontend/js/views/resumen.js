@@ -1,10 +1,10 @@
-import { h, fmtInt, fmtPct, fmtDate, fmtShort, fmtMoney, addDays, dow } from '../util.js';
+import { h, fmtInt, fmtPct, fmtDate, fmtShort, fmtMoney, dow } from '../util.js';
 import { icon } from '../icons.js';
 import { get } from '../api.js';
 import { getState, setState, filterParams, periodOptions } from '../state.js';
 import { pageHead } from '../components/layout.js';
 import { kpiCard } from '../components/kpiCard.js';
-import { stackedBars } from '../components/charts.js';
+import { expectedVsActual } from '../components/charts.js';
 import { attachTip } from '../components/tooltip.js';
 import { badge } from '../components/badge.js';
 import { openDrawer } from '../components/drawer.js';
@@ -92,59 +92,31 @@ export async function render(host, ctx) {
     h('span', {}, `extras dobles hasta ${as.tope_doble_semana_h} h por semana, triples después`),
     h('button', { class: 'linkbtn', type: 'button', onclick: () => showNeeds() }, '¿Qué necesitamos de PATE?')));
 
-  // --- horas por semana ---
-  const partialWeeks = new Set(d.serie.filter((p) => p.terminales_sin_iniciar.length).map((p) => addDays(p.fecha, -dow(p.fecha))));
-  const pts = ind.semanal.map((w) => {
-    const cov = partialWeeks.has(w.semana);
-    return { tick: fmtShort(w.desde), label: `Semana del ${fmtDate(w.desde)} al ${fmtDate(w.hasta)}`, a: w.ordinarias, b: w.extra, partial: w.parcial || cov,
-      note: [w.parcial ? `Semana incompleta: ${w.dias} de 7 días` : null, cov ? 'Cobertura parcial: la terminal 1 empieza el 22/09, a las 09:03' : null].filter(Boolean),
-      pick: { desde: w.desde, hasta: w.hasta } };
+  // --- horas esperadas vs. reales por día ---
+  const DAY = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const byDay = new Map(ind.diario.map((x) => [x.fecha, x]));
+  const pts = d.serie.map((p) => {
+    const x = byDay.get(p.fecha);
+    return { tick: fmtShort(p.fecha), label: `${DAY[dow(p.fecha)]} ${fmtDate(p.fecha)}`, gap: p.sin_datos, off: !p.sin_datos && !x, weekend: p.fin_de_semana,
+      colaboradores: x ? x.colaboradores : 0, esperadas: x ? x.esperadas : null, reales: x ? x.reales : null };
   });
+  const totEsp = ind.diario.reduce((a, x) => a + x.esperadas, 0), totReal = ind.diario.reduce((a, x) => a + x.reales, 0);
   const chartHost = h('div', { class: 'chart-host' });
-  const anyPartial = pts.some((p) => p.partial);
-  const chartCard = h('div', { class: 'card col-7' },
-    h('div', { class: 'card__head' }, h('div', {}, h('h2', { class: 'card__title' }, 'Horas por semana'),
-      h('p', { class: 'card__sub' }, 'Ordinarias y extra. Pasa el cursor para ver el detalle; clic para filtrar por esa semana.'))),
-    h('div', { class: 'legend' }, h('span', {}, h('i', { class: 'l-ord' }), 'Horas ordinarias'), h('span', {}, h('i', { class: 'l-extra' }), 'Horas extra'),
-      anyPartial ? h('span', {}, h('i', { class: 'l-partial' }), 'Semana incompleta o con cobertura parcial') : null),
-    pts.length ? chartHost : h('div', { class: 'table-state' }, 'Sin jornadas calculables en el periodo.'));
+  const chartCard = h('div', { class: 'card col-12' },
+    h('div', { class: 'card__head' }, h('div', {}, h('h2', { class: 'card__title' }, 'Horas esperadas vs. reales por día'),
+      h('p', { class: 'card__sub' }, `Esperadas: ${as.jornada_h} h por cada colaborador con entrada y salida ese día. Reales: horas netas fichadas. Pasa el cursor para ver el detalle.`))),
+    totEsp ? h('div', { class: 'xsummary' },
+      h('span', {}, h('strong', { class: 'num' }, hh(totReal)), ' reales'), h('span', {}, 'frente a ', h('strong', { class: 'num' }, hh(totEsp)), ' esperadas'),
+      h('span', { class: totReal >= totEsp ? 'xsummary__ok' : 'xsummary__low' }, `${fmtPct(totReal / totEsp * 100, 0)} de lo esperado`)) : null,
+    h('div', { class: 'legend' }, h('span', {}, h('i', { class: 'l-ref' }), 'Horas esperadas'), h('span', {}, h('i', { class: 'l-real' }), 'Horas reales'),
+      h('span', {}, h('i', { class: 'l-over' }), 'Por encima de lo esperado'), h('span', {}, h('i', { class: 'l-under' }), 'Por debajo'),
+      h('span', {}, h('i', { class: 'l-weekend' }), 'Fin de semana o día sin jornadas')),
+    ind.diario.length ? chartHost : h('div', { class: 'table-state' }, 'Sin jornadas calculables en el periodo.'));
 
-  // --- por departamento ---
-  const METRICS = {
-    extras: { label: 'Horas extra', val: (r) => r.extras, txt: (r) => hh(r.extras), ok: () => true },
-    pct: { label: '% de extra', val: (r) => r.pct_extra, txt: (r) => fmtPct(r.pct_extra), ok: (r) => r.jornadas >= MIN_JORNADAS_PCT && r.pct_extra != null },
-    retardos: { label: 'Retardos', val: (r) => r.retardos, txt: (r) => fmtInt(r.retardos), ok: () => true },
-  };
-  let metric = 'extras';
   const sel = st.depto;
-  const barsHost = h('div', { class: 'hbars hbars--wide' });
-  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Indicador por departamento' });
-  const drawDepts = () => {
-    const M = METRICS[metric];
-    const rows = ind.departamentos.filter(M.ok).sort((a, b) => M.val(b) - M.val(a));
-    const max = Math.max(1, ...rows.map(M.val));
-    [...seg.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === metric)));
-    barsHost.replaceChildren(...(rows.length ? rows.map((r) => {
-      const b = h('button', { class: 'hbar', type: 'button', 'aria-pressed': String(sel === r.depto), onclick: () => setState({ depto: sel === r.depto ? '' : r.depto }) },
-        h('span', { class: 'hbar__name' }, r.depto),
-        h('span', { class: 'hbar__track' }, h('span', { class: 'hbar__fill', style: { width: `${(M.val(r) / max) * 100}%` } })),
-        h('span', { class: 'hbar__val num' }, M.txt(r)));
-      attachTip(b, () => [h('strong', {}, r.depto), `${hh(r.horas)} trabajadas · ${hh(r.extras)} extra${r.pct_extra == null ? '' : ` (${fmtPct(r.pct_extra)})`}`,
-        h('span', { style: { display: 'block' } }, `${fmtInt(r.retardos)} retardos${r.pct_retardos == null ? '' : ` (${fmtPct(r.pct_retardos)} de ${fmtInt(r.jornadas)} jornadas)`}`),
-        h('span', { style: { display: 'block' } }, sel === r.depto ? 'Clic para quitar el filtro' : 'Clic para filtrar por este departamento')]);
-      return b;
-    }) : [h('div', { class: 'table-state' }, 'Sin departamentos con datos suficientes.')]));
-  };
-  seg.append(...Object.entries(METRICS).map(([m, v]) => h('button', { type: 'button', 'data-m': m, onclick: () => { metric = m; drawDepts(); } }, v.label)));
-  const deptCard = h('div', { class: 'card col-5' },
-    h('div', { class: 'card__head' }, h('div', {}, h('h2', { class: 'card__title' }, 'Por departamento'),
-      h('p', { class: 'card__sub' }, `Clic para filtrar. Los porcentajes solo incluyen departamentos con al menos ${MIN_JORNADAS_PCT} jornadas.`)), seg),
-    barsHost);
 
-  host.append(h('section', { class: 'grid' }, chartCard, deptCard));
-  if (pts.length) stackedBars(chartHost, { points: pts, aLabel: 'Ordinarias', bLabel: 'Extra', unit: 'h',
-    onPick: (r) => setState({ period: { preset: 'custom', desde: r.desde, hasta: r.hasta } }) });
-  drawDepts();
+  host.append(h('section', { class: 'grid' }, chartCard));
+  if (ind.diario.length) expectedVsActual(chartHost, { points: pts, unit: 'h' });
 
   // --- calidad del dato ---
   const pctIncid = k.jornadas ? (k.incidencia + k.pendiente) / k.jornadas * 100 : null;

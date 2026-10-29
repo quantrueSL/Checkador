@@ -179,54 +179,101 @@ export function calendar({ days, desde, hasta, gaps }) {
 }
 
 /**
- * Barras apiladas por semana: horas ordinarias (abajo) y horas extra (arriba).
- * points: [{tick, label, a, b, partial, note[], pick}]. Las semanas incompletas se dibujan más claras.
+ * Dos líneas por día: horas esperadas (referencia, punteada) y horas reales (continua). El área entre ambas se colorea:
+ * verde cuando se trabaja por encima de lo esperado, ámbar cuando por debajo.
+ * points: [{tick, label, esperadas|null, reales|null, colaboradores, gap, off}]. "gap" = sin registros (zona rayada);
+ * "off" = día sin jornadas (fin de semana o descanso): franja gris y las líneas lo saltan en vez de caer a cero.
  */
-export function stackedBars(host, { points, aLabel, bLabel, unit = 'h', onPick }) {
+export function expectedVsActual(host, { points, unit = 'h' }) {
   let lastW = 0;
+  const id = ++uid;
   const draw = () => {
     const W = Math.max(320, Math.floor(host.clientWidth));
     lastW = W;
-    const H = 250, m = { l: 52, r: 12, t: 12, b: 30 };
+    const H = 290, m = { l: 56, r: 14, t: 14, b: 32 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b, n = points.length;
-    const max = Math.max(1, ...points.map((p) => p.a + p.b));
-    const step = niceStep(max / 4), yMax = step * 4;
-    const slot = iw / n, bw = Math.max(6, Math.min(64, slot * 0.62));
-    const xAt = (i) => m.l + slot * i + slot / 2;
+    const max = Math.max(1, ...points.flatMap((p) => [p.esperadas ?? 0, p.reales ?? 0]));
+    const step = niceStep(max / 5), ticks = Math.ceil(max / step), yMax = step * ticks;   // el eje se ajusta a los datos
+    const slot = n > 1 ? iw / (n - 1) : iw;
+    const xAt = (i) => m.l + slot * i;
     const yAt = (v) => m.t + ih - (v / yMax) * ih;
-    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'chart', role: 'img', 'aria-label': `Horas por semana: ${aLabel} y ${bLabel}` });
-    for (let t = 0; t <= 4; t++) {
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'chart', role: 'img', 'aria-label': 'Horas esperadas y horas reales por día' });
+    svg.append(s('defs', {}, s('pattern', { id: `hatchx${id}`, width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
+      s('rect', { width: 6, height: 6, fill: '#f1f4f9' }), s('rect', { width: 2, height: 6, fill: '#cfd6e3' }))));
+    for (let t = 0; t <= ticks; t++) {
       svg.append(s('line', { x1: m.l, x2: W - m.r, y1: yAt(t * step), y2: yAt(t * step), class: 'chart__grid' }),
         s('text', { x: m.l - 8, y: yAt(t * step) + 4, 'text-anchor': 'end', class: 'chart__axis' }, fmtInt(t * step)));
     }
-    points.forEach((p, i) => {
-      svg.append(s('text', { x: xAt(i), y: H - 10, 'text-anchor': 'middle', class: 'chart__axis' }, p.tick));
-      const ya = yAt(p.a), yb = yAt(p.a + p.b);
-      const cls = p.partial ? ' chart__bar--partial' : '';
-      svg.append(s('rect', { x: xAt(i) - bw / 2, y: ya, width: bw, height: Math.max(0, yAt(0) - ya), class: `chart__bar${cls}` }),
-        s('rect', { x: xAt(i) - bw / 2, y: yb, width: bw, height: Math.max(0, ya - yb), rx: 2, class: `chart__bar chart__bar--extra${cls}` }));
-    });
-    const hit = s('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' });
-    svg.append(hit);
-    const idx = (e) => {
-      const r = svg.getBoundingClientRect();
-      return Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - r.left) * (W / r.width) - m.l) / slot)));
+    svg.append(s('text', { x: m.l - 8, y: 9, 'text-anchor': 'end', class: 'chart__axis' }, unit));
+    const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 62))));
+    points.forEach((p, i) => { if (i % every === 0) svg.append(s('text', { x: xAt(i), y: H - 10, 'text-anchor': 'middle', class: 'chart__axis' }, p.tick)); });
+
+    // franjas: días sin jornadas (gris) y sin registros (rayado)
+    const band = (pred, attrs) => {
+      for (let i = 0; i < n; i++) {
+        if (!pred(points[i])) continue;
+        let j = i;
+        while (j + 1 < n && pred(points[j + 1])) j++;
+        const x0 = Math.max(m.l, xAt(i) - slot / 2), x1 = Math.min(W - m.r, xAt(j) + slot / 2);
+        svg.append(s('rect', { x: x0, y: m.t, width: Math.max(1, x1 - x0), height: ih, ...attrs }));
+        i = j;
+      }
     };
+    band((p) => (p.off || p.weekend) && !p.gap, { class: 'chart__weekend' });
+    band((p) => p.gap, { fill: `url(#hatchx${id})` });
+
+    // área entre las dos líneas: verde si lo real supera lo esperado, ámbar si se queda corto
+    let prev = null;
+    const poly = (pts, cls) => svg.append(s('path', { d: `${pts.map(([x, y], k) => `${k ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('')}Z`, class: cls }));
+    points.forEach((p, i) => {
+      if (p.gap) { prev = null; return; }
+      if (p.off || p.esperadas == null) return;
+      const cur = { x: xAt(i), e: p.esperadas, r: p.reales };
+      if (prev) {
+        const d0 = prev.r - prev.e, d1 = cur.r - cur.e;
+        const P = (x, v) => [x, yAt(v)];
+        const cls = (d) => (d >= 0 ? 'chart__over' : 'chart__under');
+        if (d0 * d1 >= 0) poly([P(prev.x, prev.e), P(cur.x, cur.e), P(cur.x, cur.r), P(prev.x, prev.r)], cls(d0 || d1));
+        else {
+          const k = d0 / (d0 - d1), xc = prev.x + (cur.x - prev.x) * k, vc = prev.e + (cur.e - prev.e) * k;
+          poly([P(prev.x, prev.e), P(xc, vc), P(prev.x, prev.r)], cls(d0));
+          poly([P(xc, vc), P(cur.x, cur.e), P(cur.x, cur.r)], cls(d1));
+        }
+      }
+      prev = cur;
+    });
+
+    const line = (key, cls) => {
+      let seg = [];
+      const flush = () => {
+        if (seg.length > 1) svg.append(s('path', { d: seg.map(([x, y], k) => `${k ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(''), class: cls }));
+        seg = [];
+      };
+      points.forEach((p, i) => { if (p.gap) flush(); else if (!p.off && p[key] != null) seg.push([xAt(i), yAt(p[key])]); });
+      flush();
+    };
+    line('esperadas', 'chart__line chart__line--ref');
+    line('reales', 'chart__line chart__line--real');
+    if (n <= 45) points.forEach((p, i) => { if (!p.gap && !p.off && p.reales != null) svg.append(s('circle', { cx: xAt(i), cy: yAt(p.reales), r: 3, class: 'chart__pt' })); });
+
+    const guide = s('line', { y1: m.t, y2: m.t + ih, class: 'chart__guide', visibility: 'hidden' });
+    const hit = s('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' });
+    svg.append(guide, hit);
     hit.addEventListener('pointermove', (e) => {
-      const p = points[idx(e)];
-      const tot = p.a + p.b;
+      const r = svg.getBoundingClientRect();
+      const i = Math.min(n - 1, Math.max(0, Math.round(((e.clientX - r.left) * (W / r.width) - m.l) / slot)));
+      const p = points[i], block = (t) => h('span', { style: { display: 'block' } }, t);
+      guide.setAttribute('x1', xAt(i)); guide.setAttribute('x2', xAt(i)); guide.setAttribute('visibility', 'visible');
+      const dif = p.reales != null && p.esperadas != null ? p.reales - p.esperadas : null;
+      const pctTxt = p.esperadas ? ` (${(p.reales / p.esperadas * 100).toLocaleString('es-MX', { maximumFractionDigits: 0 })} % de lo esperado)` : '';
       showTip(e.clientX, e.clientY, h('strong', {}, p.label),
-        h('span', { style: { display: 'block' } }, `${aLabel}: ${fmtInt(p.a)} ${unit}`),
-        h('span', { style: { display: 'block' } }, `${bLabel}: ${fmtInt(p.b)} ${unit}${tot ? ` (${(p.b / tot * 100).toLocaleString('es-MX', { maximumFractionDigits: 1 })} % del total)` : ''}`),
-        ...(p.note || []).map((t) => h('span', { style: { display: 'block' } }, t)),
-        onPick && p.pick ? h('span', { style: { display: 'block', marginTop: '4px' } }, 'Clic para filtrar por esta semana') : '');
+        ...(p.gap ? [block('Sin registros en las terminales de asistencia')] : p.off ? [block('Sin jornadas calculables (descanso o fin de semana)')] : [
+          block(`${fmtInt(p.colaboradores)} colaboradores con entrada y salida`),
+          block(`Esperadas: ${fmtInt(p.esperadas)} ${unit}`), block(`Reales: ${fmtInt(p.reales)} ${unit}`),
+          dif == null ? '' : block(`${dif >= 0 ? 'Por encima' : 'Por debajo'}: ${fmtInt(Math.abs(dif))} ${unit}${pctTxt}`)]));
       moveTip(e.clientX, e.clientY);
     });
-    if (onPick) {
-      hit.style.cursor = 'pointer';
-      hit.addEventListener('click', (e) => { const p = points[idx(e)]; if (p.pick) { hideTip(); onPick(p.pick); } });
-    }
-    hit.addEventListener('pointerleave', hideTip);
+    hit.addEventListener('pointerleave', () => { guide.setAttribute('visibility', 'hidden'); hideTip(); });
     host.replaceChildren(svg);
   };
   draw();

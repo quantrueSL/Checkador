@@ -346,9 +346,11 @@ textarea.input { height: 84px; padding: 8px 10px; width: 100%; resize: vertical;
 .assume { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 12px; margin: 12px 0; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: #fafbfd; font-size: 12.5px; color: var(--muted); }
 .assume strong { color: var(--navy-900); }
 .assume .select { height: 28px; padding: 0 8px; font-size: 12.5px; }
-.chart__bar--extra { fill: var(--teal-500); }
-.legend .l-ord { background: var(--navy-800); }
-.legend .l-extra { background: var(--teal-500); }
+.chart__line--ref { stroke: var(--teal-500); stroke-dasharray: 6 4; }
+.chart__dot--ref { fill: var(--teal-500); }
+.chart__dot--real { fill: var(--navy-800); }
+.legend .l-real { background: var(--navy-800); }
+.legend .l-ref { background: repeating-linear-gradient(90deg, var(--teal-500) 0 5px, transparent 5px 8px); height: 3px; vertical-align: 3px; border-radius: 0; }
 .qrow { display: grid; grid-template-columns: 1fr 70px 54px; gap: 10px; align-items: center; padding: 6px 4px; border: 0; background: transparent; width: 100%; text-align: left; border-radius: 6px; }
 .qrow:hover { background: var(--navy-50); }
 .qrow__name { font-size: 12.5px; font-weight: 600; color: var(--navy-900); }
@@ -407,3 +409,15 @@ textarea.input { height: 84px; padding: 8px 10px; width: 100%; resize: vertical;
 .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .stat { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line, #dfe5ec); font-size: 12.5px; color: var(--muted); }
 .stat strong { font-size: 15px; color: var(--navy-900); }
+
+.chart__line--real { stroke-width: 2.75; }
+.chart__line--ref { stroke-width: 2; }
+.chart__pt { fill: #fff; stroke: var(--navy-800); stroke-width: 1.75; }
+.chart__over { fill: #2f9e6e; opacity: .22; }
+.chart__under { fill: var(--warn-dot); opacity: .26; }
+.legend .l-over { background: #2f9e6e; opacity: .45; }
+.legend .l-under { background: var(--warn-dot); opacity: .5; }
+.xsummary { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.xsummary strong { color: var(--navy-900); font-size: 15px; }
+.xsummary__ok { color: #217a54; font-weight: 700; }
+.xsummary__low { color: var(--warn); font-weight: 700; }

@@ -121,7 +121,7 @@ def indicadores_supuestos(conn, f, comida=None):
     comp = sin_salida = retardos = j_ext = 0
     horas = extras = 0.0
     c_ret, c_ext = set(), set()
-    weeks, worker_week, deps = {}, defaultdict(float), {}
+    worker_week, deps, days_h = defaultdict(float), {}, {}
     for d in days:
         if not (f.desde <= d["fecha"] <= f.hasta) or (f.depto and d["depto"] != f.depto) or (f.trabajador is not None and d["trabajador"] != f.trabajador):
             continue
@@ -130,11 +130,11 @@ def indicadores_supuestos(conn, f, comida=None):
             sin_salida += 1
             continue
         ws = attendance.week_start(d["fecha"])
-        w = weeks.setdefault(ws, {"ord": 0.0, "extra": 0.0, "jornadas": 0})
         p = deps.setdefault(d["depto"], {"depto": d["depto"], "horas": 0.0, "extras": 0.0, "jornadas": 0, "retardos": 0})
         comp += 1
         horas += m["neto_h"]
-        w["ord"] += m["ord_h"]; w["extra"] += m["extra_h"]; w["jornadas"] += 1
+        dd = days_h.setdefault(d["fecha"], {"colaboradores": 0, "reales": 0.0})
+        dd["colaboradores"] += 1; dd["reales"] += m["neto_h"]
         p["horas"] += m["neto_h"]; p["extras"] += m["extra_h"]; p["jornadas"] += 1
         if m["retardo"]:
             retardos += 1
@@ -146,13 +146,10 @@ def indicadores_supuestos(conn, f, comida=None):
             c_ext.add(d["trabajador"])
             worker_week[(d["trabajador"], ws)] += m["extra_h"]
     dobles, triples = attendance.split_weekly_extra(worker_week)
-    semanal = []
-    for ws in sorted(weeks):
-        a, b = max(ws, f.desde), min((_d(ws) + timedelta(days=6)).isoformat(), f.hasta)
-        cubiertos = (_d(b) - _d(a)).days + 1
-        w = weeks[ws]
-        semanal.append({"semana": ws, "desde": a, "hasta": b, "dias": cubiertos, "parcial": cubiertos < 7, "jornadas": w["jornadas"],
-                        "ordinarias": round(w["ord"], 1), "extra": round(w["extra"], 1)})
+    cfg_jornada = config.DEMO_WORKDAY_HOURS
+    # por día: horas que tocaría trabajar (jornada x colaboradores con entrada y salida) frente a las realmente trabajadas
+    diario = [{"fecha": fe, "colaboradores": v["colaboradores"], "esperadas": round(v["colaboradores"] * cfg_jornada, 1),
+               "reales": round(v["reales"], 1)} for fe, v in sorted(days_h.items())]
     departamentos = [{"depto": p["depto"], "horas": round(p["horas"]), "extras": round(p["extras"]), "jornadas": p["jornadas"],
                       "retardos": p["retardos"],
                       "pct_extra": round(p["extras"] / p["horas"] * 100, 1) if p["horas"] else None,
@@ -164,7 +161,7 @@ def indicadores_supuestos(conn, f, comida=None):
         "puntualidad": {"retardos": retardos, "pct": round(retardos / comp * 100, 1) if comp else None, "colaboradores": len(c_ret)},
         "extras": {"horas": round(extras), "dobles": round(dobles), "triples": round(triples), "jornadas": j_ext, "colaboradores": len(c_ext),
                    "pct": round(extras / horas * 100, 1) if horas else None},
-        "semanal": semanal, "departamentos": departamentos,
+        "diario": diario, "departamentos": departamentos,
         "supuestos": {"jornada_h": cfg.DEMO_WORKDAY_HOURS, "tolerancia_min": cfg.DEMO_LATE_TOLERANCE_MIN, "comida_h": meal,
                       "comida_opciones": list(MEAL_OPTIONS), "tope_doble_semana_h": cfg.DEMO_DOUBLE_CAP_WEEK_H},
     }
