@@ -1,7 +1,7 @@
 # Datos reales de PATE: no se suben al repositorio
 Checadas.csv
 *.csv
-data/
+/data/
 *.db
 *.sqlite
 
