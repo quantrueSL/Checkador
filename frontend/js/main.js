@@ -5,6 +5,7 @@ import { mountSidebar, setActiveNav } from './components/layout.js';
 import { mountFilterBar } from './components/filterBar.js';
 import * as resumen from './views/resumen.js';
 import * as fichajes from './views/fichajes.js';
+import * as horasExtra from './views/horasExtra.js';
 import * as incidencias from './views/incidencias.js';
 // Pestaña "Nómina y conciliación". Vista actual: agregada por mes y departamento (views/nomina.js).
 // Para volver a la vista anterior (una fila por colaborador) como pestaña principal, cambia solo esta línea por:
@@ -15,7 +16,7 @@ import * as nominaColaborador from './views/nominaColaborador.js';
 import * as extrasSinPagar from './views/extrasSinPagar.js';
 import * as colaborador from './views/colaborador.js';
 
-const VIEWS = { resumen, fichajes, incidencias, nomina, nomina_colaborador: nominaColaborador, extras_sin_pagar: extrasSinPagar, colaborador };
+const VIEWS = { resumen, horas_extra: horasExtra, fichajes, incidencias, nomina, nomina_colaborador: nominaColaborador, extras_sin_pagar: extrasSinPagar, colaborador };
 const content = document.getElementById('content');
 let filterBar, token = 0;
 

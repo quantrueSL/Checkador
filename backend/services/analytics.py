@@ -167,6 +167,51 @@ def indicadores_supuestos(conn, f, comida=None):
     }
 
 
+def horas_extra(conn, f, reveal, comida=None):
+    """Horas extra por colaborador en el periodo (todos los departamentos; el filtro por departamento lo aplica la vista).
+    Mismo criterio que indicadores_supuestos: solo jornadas con entrada y salida, dobles hasta el tope semanal y triples el resto."""
+    meal = comida if comida in MEAL_OPTIONS else config.DEMO_MEAL_HOURS
+    days = repo.attendance_days(conn)
+    entry = attendance.entry_by_worker(days)
+    workers, deps = {}, {}
+    for d in days:
+        if not (f.desde <= d["fecha"] <= f.hasta):
+            continue
+        m = attendance.day_metrics(d["horas"].split(","), entry.get(d["trabajador"]) or 0, meal)
+        if not m["computable"]:
+            continue
+        w = workers.setdefault(d["trabajador"], {"trabajador": d["trabajador"], "depto": d["depto"], "horas": 0.0, "extra": 0.0,
+                                                 "dias": 0, "dias_extra": 0, "max_dia": 0.0, "semanas": defaultdict(float)})
+        p = deps.setdefault(d["depto"], {"depto": d["depto"], "horas": 0.0, "colaboradores": set()})
+        w["depto"] = d["depto"]
+        w["horas"] += m["neto_h"]; w["dias"] += 1
+        p["horas"] += m["neto_h"]; p["colaboradores"].add(d["trabajador"])
+        if m["extra_h"] > 0:
+            w["extra"] += m["extra_h"]; w["dias_extra"] += 1
+            w["max_dia"] = max(w["max_dia"], m["extra_h"])
+            w["semanas"][attendance.week_start(d["fecha"])] += m["extra_h"]
+    names = repo.worker_names(conn)
+    rows, extra_dep = [], defaultdict(lambda: {"extras": 0.0, "dobles": 0.0, "triples": 0.0, "con_extra": 0})
+    for w in workers.values():
+        if w["extra"] <= 0:
+            continue
+        dob, tri = attendance.split_weekly_extra(w["semanas"])
+        rows.append({"trabajador": w["trabajador"], "nombre": privacy.display_name(names.get(w["trabajador"]), reveal), "depto": w["depto"],
+                     "extra": round(w["extra"], 2), "dobles": round(dob, 2), "triples": round(tri, 2), "dias_extra": w["dias_extra"],
+                     "dias": w["dias"], "max_dia": round(w["max_dia"], 2), "horas": round(w["horas"], 2),
+                     "pct_extra": round(w["extra"] / w["horas"] * 100, 1) if w["horas"] else None})
+        e = extra_dep[w["depto"]]
+        e["extras"] += w["extra"]; e["dobles"] += dob; e["triples"] += tri; e["con_extra"] += 1
+    rows.sort(key=lambda r: (-r["extra"], r["trabajador"]))
+    departamentos = [{"depto": p["depto"], "horas": round(p["horas"]), "colaboradores": len(p["colaboradores"]),
+                     "extras": round(extra_dep[p["depto"]]["extras"], 2), "dobles": round(extra_dep[p["depto"]]["dobles"], 2),
+                     "triples": round(extra_dep[p["depto"]]["triples"], 2), "con_extra": extra_dep[p["depto"]]["con_extra"]}
+                     for p in deps.values()]
+    return {"periodo": {"desde": f.desde, "hasta": f.hasta}, "rows": rows, "departamentos": departamentos,
+            "colaboradores": sum(p["colaboradores"] for p in departamentos),
+            "supuestos": {"jornada_h": config.DEMO_WORKDAY_HOURS, "tope_doble_semana_h": config.DEMO_DOUBLE_CAP_WEEK_H, "comida_h": meal}}
+
+
 def _jornada_public(row, reveal):
     r = person(row, reveal)
     r["horas"] = r["horas"].split(",") if r.get("horas") else []

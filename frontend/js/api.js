@@ -19,3 +19,4 @@ export const post = (path, data) => fetch(`/api/${path}`, {
 }).then(parse);
 export const postFile = (path, file) => fetch(`/api/${path}`, { method: 'POST', body: file }).then(parse);
 export const exportUrl = (name, params) => `/api/export/${name}.csv${qs(params)}`;
+export const STATIC = false;

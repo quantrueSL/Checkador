@@ -33,6 +33,7 @@ def build_bundle(conn) -> dict:
     return {
         "meta": analytics.meta(conn),
         "resumen": {f"{c:g}": analytics.resumen(conn, repo.Filters(lo, hi, None, None), c) for c in COMIDAS},
+        "horas_extra": {f"{c:g}": analytics.horas_extra(conn, repo.Filters(lo, hi, None, None), False, c) for c in COMIDAS},
         "extras": {"": analytics.nomina_extras(conn, None), **{m: analytics.nomina_extras(conn, m) for m in meses}},
         "casos": {"": todos, **{m: analytics.nomina_casos(conn, False, mes=m, **args) for m in meses}},
         "detalle": {str(r["id"]): analytics.nomina_detalle(conn, r["id"], False) for r in todos["rows"]},

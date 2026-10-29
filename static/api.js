@@ -99,6 +99,7 @@ function casos(p) {
 function route(path, p) {
   if (path === 'meta') return bundle.meta;
   if (path === 'resumen') return bundle.resumen[String(Number(p.comida) || 1)] || bundle.resumen['1'];
+  if (path === 'horas_extra') return bundle.horas_extra[String(Number(p.comida) || 1)] || bundle.horas_extra['1'];
   if (path === 'nomina/extras') return bundle.extras[p.mes || ''];
   if (path === 'nomina/casos') return casos(p);
   if (path === 'nomina/detalle') {
@@ -113,3 +114,4 @@ export const get = async (path, params) => { await ready; return route(path, par
 export const post = async () => { throw new Error('No disponible en la versión publicada de la demo.'); };
 export const postFile = post;
 export const exportUrl = () => '#';
+export const STATIC = true;

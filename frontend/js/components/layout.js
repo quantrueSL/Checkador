@@ -4,6 +4,7 @@ import { s } from '../util.js';
 
 export const NAV = [
   { id: 'resumen', label: 'Resumen ejecutivo', icon: 'grid' },
+  { id: 'horas_extra', label: 'Horas extra', icon: 'clock' },
   { id: 'nomina', label: 'Nómina y conciliación', icon: 'payroll', tag: 'Fase 2' },
   { id: 'extras_sin_pagar', label: 'Horas extra sin pagar', icon: 'hourglass', tag: 'Fase 2' },
 ];

@@ -70,6 +70,14 @@ def r_resumen(conn, qs):
     return analytics.resumen(conn, _filters(conn, qs), comida)
 
 
+def r_horas_extra(conn, qs):
+    try:
+        comida = float(_q(qs, "comida", ""))
+    except ValueError:
+        comida = None
+    return analytics.horas_extra(conn, _filters(conn, qs, with_worker=False), _reveal(qs), comida)
+
+
 def r_colaboradores(conn, qs):
     return analytics.colaboradores(conn, _filters(conn, qs), _reveal(qs), q=_q(qs, "q"), sort=_q(qs, "sort", "fichajes"),
                                    **_page(qs))
@@ -147,7 +155,7 @@ def r_nomina_detalle(conn, qs):
 
 
 GET_ROUTES = {
-    "/api/meta": r_meta, "/api/resumen": r_resumen, "/api/colaboradores": r_colaboradores,
+    "/api/meta": r_meta, "/api/resumen": r_resumen, "/api/horas_extra": r_horas_extra, "/api/colaboradores": r_colaboradores,
     "/api/colaboradores/buscar": r_buscar, "/api/jornadas": r_jornadas, "/api/jornadas/detalle": r_detalle,
     "/api/incidencias": r_incidencias, "/api/registros": r_registros, "/api/trazabilidad": r_trazabilidad,
     "/api/nomina/estado": r_nomina, "/api/nomina/conciliacion": r_conciliacion, "/api/nomina/detalle": r_nomina_detalle,

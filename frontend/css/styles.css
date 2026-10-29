@@ -410,6 +410,21 @@ textarea.input { height: 84px; padding: 8px 10px; width: 100%; resize: vertical;
 .stat { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line, #dfe5ec); font-size: 12.5px; color: var(--muted); }
 .stat strong { font-size: 15px; color: var(--navy-900); }
 
+/* ---- pestaña Horas extra ---- */
+.xtoolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin-bottom: 14px; }
+.xtoolbar .select { min-width: 220px; }
+.xbar { display: flex; width: 140px; height: 10px; background: var(--navy-50); border-radius: 5px; overflow: hidden; }
+.xbar__d { height: 100%; background: var(--navy-800); }
+.xbar__t { height: 100%; background: var(--teal-500); }
+.podium { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.podium li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; background: var(--navy-50); }
+.podium li:first-child { background: var(--teal-100); }
+.podium__n { width: 24px; height: 24px; border-radius: 50%; background: var(--navy-800); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.podium__who small { color: var(--muted); font-size: 12px; }
+.podium__val { font-weight: 700; color: var(--navy-900); }
+.xstack { display: flex; height: 100%; min-width: 2px; }
+.legend .l-ord { background: var(--navy-800); }
+.legend .l-extra { background: var(--teal-500); }
 .chart__line--real { stroke-width: 2.75; }
 .chart__line--ref { stroke-width: 2; }
 .chart__pt { fill: #fff; stroke: var(--navy-800); stroke-width: 1.75; }
