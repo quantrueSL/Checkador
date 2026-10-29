@@ -8,7 +8,7 @@ Demo comercial de Quantrue para PATE (Procesadora de Aves de Tepa). Revisa los f
 
 - **Resumen ejecutivo:** horas trabajadas, horas extra, retardos y conciliación de nómina, con gráficos por semana, departamento y tipo de alerta.
 - **Nómina y conciliación:** horas extra pagadas frente a las que indican los fichajes, por mes y departamento.
-- **Horas extra sin pagar:** casos concretos, con el detalle día a día.
+- **Horas extra: pagadas vs. fichadas:** casos concretos, con el detalle día a día.
 
 ## Requisitos
 
@@ -52,7 +52,7 @@ Para regenerarla con los datos actuales (la clave se pasa por entorno y no se gu
 $env:PATE_STATIC_USER = "usuario"; $env:PATE_STATIC_PASS = "contraseña"; python export_static.py
 ```
 
-Muestra Resumen, Nómina y Horas extra sin pagar. No incluye filtros globales ni subida de CSV; los nombres van siempre enmascarados. Si cambias la contraseña, hay que regenerar y volver a publicar `docs/`.
+Muestra Resumen, Nómina y Horas extra: pagadas vs. fichadas. No incluye filtros globales ni subida de CSV; los nombres van siempre enmascarados. Si cambias la contraseña, hay que regenerar y volver a publicar `docs/`.
 
 ## Reglas de la demo
 

@@ -1,5 +1,5 @@
 /**
- * Horas extra sin pagar · casos concretos: nóminas simuladas en las que las horas extra que indican los fichajes
+ * Horas extra: pagadas vs. fichadas · casos concretos: nóminas simuladas en las que las horas extra que indican los fichajes
  * no se pagaron (total o parcialmente), con el detalle día a día de cada caso.
  */
 import { h, fmtInt, fmtDate, fmtShort, fmtMoney, monthName } from '../util.js';
@@ -65,7 +65,7 @@ async function openCase(id, nombres) {
 export async function render(host) {
   const { nombres } = getState();
   const first = await get('nomina/casos', { pageSize: 1 });
-  const head = pageHead({ title: 'Horas extra sin pagar', subtitle: 'Casos concretos en los que las horas extra que indican los fichajes no se pagaron en la nómina' });
+  const head = pageHead({ title: 'Horas extra: pagadas vs. fichadas', subtitle: 'Casos concretos en los que las horas extra que indican los fichajes no se pagaron en la nómina' });
   if (!first.hay_datos) {
     host.replaceChildren(head, h('div', { class: 'card' }, h('div', { class: 'table-state' }, 'Todavía no hay nóminas simuladas. Ejecuta “python run.py nominas” para generarlas.')));
     return;
